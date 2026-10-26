@@ -1,0 +1,77 @@
+# QQ AI 自动回复 Bot 部署编排（2核2G 优化版）
+#
+# 结构：napcat（QQ 协议端） + bot（本项目），同一 bridge 网络内通过服务名互访。
+# bot 的 config.json 里 ws_url 必须填 ws://napcat:3001
+#
+# 启动：docker compose up -d --build
+# 日志：docker compose logs -f bot
+
+services:
+  # ------------------------------------------------------------------ #
+  # QQ 协议端（非本项目，官方镜像）。首次需在 WebUI 扫码登录。
+  # ------------------------------------------------------------------ #
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: always
+    environment:
+      - NAPCAT_UID=1000
+      - NAPCAT_GID=1000
+      - MODE=ws
+      - TZ=Asia/Shanghai
+      # 快速登录：Docker 版用 ACCOUNT 环境变量指定 QQ 号（Shell 版才是 -q 参数）。
+      # 有它就不走二维码，直接用 ./napcat/qq 里已保存的登录态自动登录。
+      # 注意：首次登录 / 登录态失效时仍需扫码，之后重启可免扫。
+      - ACCOUNT=2024514917
+    ports:
+      # WebUI：仅用于首次扫码登录 / 配置 OneBot WS，配完可从公网撤掉
+      - "6099:6099"
+      # OneBot WS：只绑本机，方便在服务器上调试；bot 走容器网络不依赖这个映射
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - ./napcat/config:/app/napcat/config
+      - ./napcat/qq:/app/.config/QQ        # 登录态，必须持久化，否则每次重启要重新扫码
+      # 与 bot 容器共享同一份缓存/下载目录：bot 生成的图片、语音、文件落在宿主机，
+      # NapCat 发送时需要读取这些本地路径，两个容器内路径必须一致（都是 /app/cache）。
+      - ./cache:/app/cache
+      - ./downloads:/app/downloads
+    networks:
+      - botnet
+    mem_limit: 512m
+    # 日志轮转：避免长期运行把 40G 系统盘写满
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ------------------------------------------------------------------ #
+  # 本项目
+  # ------------------------------------------------------------------ #
+  bot:
+    build: .
+    image: qq-ai-reply:latest
+    container_name: qq-ai-bot
+    restart: always
+    depends_on:
+      - napcat
+    volumes:
+      # 配置与运行时数据全部落宿主机，便于改配置 / 备份 / 排查
+      - ./config.json:/app/config.json:ro
+      - ./memory.json:/app/memory.json
+      - ./cache:/app/cache
+      - ./downloads:/app/downloads
+    networks:
+      - botnet
+    # 2G 机器的关键约束：给 NapCat 与系统留出余量
+    mem_limit: 1200m
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+networks:
+  botnet:
+    driver: bridge

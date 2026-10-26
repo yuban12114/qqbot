@@ -1,0 +1,20 @@
+# 运行时数据与本地环境，不进镜像
+venv/
+__pycache__/
+*.pyc
+*.pyo
+cache/
+downloads/
+napcat/
+
+# 含明文 API key，靠 compose 挂载注入
+config.json
+memory.json
+
+# 测试与文档（不影响运行，减少镜像体积）
+test_*.py
+verify_*.py
+setup.sh
+*.md
+.git/
+.gitignore
