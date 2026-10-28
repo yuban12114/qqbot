@@ -11,6 +11,12 @@ napcat/
 config.json
 memory.json
 
+# 部署前手工备份快照（如 agent.py.bak-*）
+# Dockerfile 末尾是 COPY . .，不加这条会把备份文件一起打进 /app
+*.bak
+*.bak-*
+*.bak.*
+
 # 测试与文档（不影响运行，减少镜像体积）
 test_*.py
 verify_*.py

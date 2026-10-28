@@ -33,6 +33,13 @@ docker-compose-backup.yml
 # ---- 部署打包产物 ----
 qqbot-update-*.tar.gz
 
+# ---- 部署前手工备份快照 ----
+# 覆盖文件前用 cp 留的临时副本（如 agent.py.bak-20261028-185746）。
+# 内容在 git 历史里都有，提交进来只会污染搜索、让仓库里出现两份同名模块。
+*.bak
+*.bak-*
+*.bak.*
+
 # ---- 系统文件 ----
 .DS_Store
 Thumbs.db
